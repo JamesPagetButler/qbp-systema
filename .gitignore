@@ -1,0 +1,28 @@
+# Build outputs
+/qbp-scout-daemon
+/bin/
+*.exe
+*.test
+*.prof
+*.out
+
+# Editor + IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs + temp
+*.log
+/tmp/
+
+# Worktrees (federation rule #1 — never commit worktree dirs)
+/worktrees/
+
+# Test caches
+/.cache/
