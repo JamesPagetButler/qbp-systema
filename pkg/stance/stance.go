@@ -59,11 +59,15 @@ var typeNodeAliases = map[string][]string{
 	"qbp:su2-double-cover":              {"su(2) double cover", "su2 double cover", "spin double cover"},
 	"qbp:hurwitz-norm-multiplicativity": {"hurwitz norm", "norm multiplicativity"},
 	"qbp:octonion-non-associativity":    {"octonion non-associativity", "non-associative octonion"},
-	"qbp:sedenion-zero-divisor":         {"sedenion zero divisor", "sedenion zero-divisor", "42 zero-divisor"},
+	"qbp:sedenion-zero-divisor":         {"sedenion zero divisor", "sedenion zero-divisor", "cawagas", "moreno 1998"},
 	"qbp:g2-holonomy":                   {"g2 holonomy", "g_2 holonomy", "exceptional g2"},
 	"qbp:fano-aut-pgl27":                {"fano automorphism", "pgl(2,7)", "fano plane automorphism"},
 	"qbp:fano-stab-24":                  {"fano stabiliser", "fano stabilizer"},
-	"qbp:spectral-triple":               {"spectral triple", "noncommutative geometry", "connes triple"},
+	// Note (PR #1 Gemini F3): dropped "noncommutative geometry" from
+	// qbp:spectral-triple aliases — too broad; would over-trigger on
+	// arXiv abstracts mentioning NCG without QBP-specific context.
+	// "connes triple" + "spectral triple" remain canonical.
+	"qbp:spectral-triple":               {"spectral triple", "connes triple"},
 	"qbp:cd-tower-zeta-numerator":       {"cayley-dickson tower", "zeta moments", "cd tower"},
 
 	// §1.2 Theoretical bridges
@@ -139,6 +143,23 @@ func TypeNodes() []string {
 // substring matching.
 //
 // Per tenancy v0.2 §4.1 filter spec: "Stance Type-Node match in title/abstract".
+//
+// Note (PR #1 Gemini F4): the typeNodeAliases values are maintained as
+// lowercase-canonical strings (see the var declaration above); no per-alias
+// `strings.ToLower(alias)` call is needed inside the loop. Only the input
+// text gets lowercased once.
+//
+// Note (PR #1 Red Team G2): the alias values are dual-source-of-truth with
+// configs/scope-nodes.yaml's `type_nodes` lists. The matcher's
+// LoadFromScopeNodes hook is the bridge that derives `loadedTypeNodes` +
+// `typeToAnchors` from the YAML at startup, but the alias TEXT mapping
+// (qbp:X → ["natural-language match 1", "match 2", ...]) currently lives
+// only in this file. When Contextus scope-loader Go impl ships (W3), the
+// alias values should migrate into scope-nodes.yaml conceptual-node entries
+// (e.g., as a `match_aliases:` field) so the YAML is the single source of
+// truth. Until then, schema drift between this file and scope-nodes.yaml
+// is a known risk — caught by future TestAliasesMatchScopeNodesYAML test
+// (not yet added; W5.2 follow-up).
 func Match(text string) []string {
 	if text == "" {
 		return nil
@@ -153,7 +174,8 @@ func Match(text string) []string {
 	for _, tn := range loadedTypeNodes {
 		aliases := typeNodeAliases[tn]
 		for _, alias := range aliases {
-			if strings.Contains(lower, strings.ToLower(alias)) {
+			// alias is already lowercase per the var declaration's discipline
+			if strings.Contains(lower, alias) {
 				if _, ok := seen[tn]; !ok {
 					matched = append(matched, tn)
 					seen[tn] = struct{}{}

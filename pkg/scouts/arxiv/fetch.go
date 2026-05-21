@@ -49,7 +49,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
+	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"strings"
@@ -175,6 +175,13 @@ func Fetch(ctx context.Context) ([]byte, error) {
 			ErrFetchAllSourcesFailed, len(sources), strings.Join(failedSources, "; "))
 	}
 
+	// TODO(PR #1 Red Team S3): partial-source success is silently
+	// flowing — `failedSources` is built locally then discarded. When the
+	// scout daemon ships, surface this via stress.Bus emission or
+	// daemon log per Wyrd PR #54 §6 observability. Today operators only
+	// learn of per-source failures from arxiv-side rate-limit / error
+	// surface; not from the daemon's own logs.
+
 	// Concatenate Atom feeds with explicit source-separator comments so
 	// Transform can attribute entries to source categories. The Atom
 	// parser ignores XML comments; the separator is informational.
@@ -205,8 +212,15 @@ func fetchSourceWithBackoff(ctx context.Context, source string, b BackoffPolicy)
 			if delay > b.Ceiling {
 				delay = b.Ceiling
 			}
-			// Jitter: ±25% uniform.
-			jitter := time.Duration(rand.Int63n(int64(delay) / 2)) //nolint:gosec // jitter not cryptographic
+			// Jitter: ±25% uniform. Per Gemini PR #1 review F1: guard
+			// against delay/2 == 0 (math/rand/v2 panics on N <= 0). With
+			// BaseDelay = 100ms this can't happen in practice, but the
+			// defensive guard closes the door on degenerate configs.
+			halfDelay := int64(delay) / 2
+			var jitter time.Duration
+			if halfDelay > 0 {
+				jitter = time.Duration(rand.Int64N(halfDelay)) // math/rand/v2; safe + concurrent
+			}
 			delay = delay - delay/4 + jitter
 			select {
 			case <-ctx.Done():
