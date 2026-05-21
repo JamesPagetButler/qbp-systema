@@ -1,0 +1,86 @@
+name: CI (Go)
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  # Modules under the JamesPagetButler/* prefix are private; bypass the
+  # public Go module proxy + sum database. Same pattern as Wyrd CI.
+  GOPRIVATE: github.com/JamesPagetButler/*
+  GOPROXY: https://proxy.golang.org,direct
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Configure git for private JamesPagetButler/* modules
+        # QBP_SYSTEMA_PAT must be a fine-grained or classic PAT with read
+        # access to JamesPagetButler/wyrd + JamesPagetButler/Contextus
+        # (substrate deps; W2 + W3 dependencies). Rotate every 90 days
+        # per closeout Q7 standing rule. If the secret is missing, the
+        # step is a no-op and Go falls back to the failing public path
+        # so the failure mode is visible.
+        env:
+          QBP_SYSTEMA_PAT: ${{ secrets.QBP_SYSTEMA_PAT }}
+        run: |
+          if [ -n "$QBP_SYSTEMA_PAT" ]; then
+            git config --global url."https://x-access-token:${QBP_SYSTEMA_PAT}@github.com/".insteadOf "https://github.com/"
+          else
+            echo "QBP_SYSTEMA_PAT secret not set; private-module fetches will fail. Set the secret per closeout Q7."
+          fi
+
+      # NOTE: until W2 (Wyrd scoutd impl) + W3 (Contextus scope-loader Go)
+      # ship, `go build ./...` will fail with unresolved imports per
+      # cmd/qbp-scout-daemon/main.go + pkg/scouts/arxiv/* file headers.
+      # The build job runs anyway to surface the gap; CI failure here is
+      # expected and tracked at QBP #443 + #444.
+      - name: Build
+        continue-on-error: true   # remove this line once W2 + W3 land
+        run: go build ./...
+
+      - name: Vet
+        continue-on-error: true   # remove this line once W2 + W3 land
+        run: go vet ./...
+
+      - name: Test (race-detect)
+        continue-on-error: true   # remove this line once W2 + W3 land
+        run: go test -race -coverprofile=coverage.out ./...
+
+      - uses: actions/upload-artifact@v4
+        if: success() && hashFiles('coverage.out') != ''
+        with:
+          name: coverage
+          path: coverage.out
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Configure git for private JamesPagetButler/* modules
+        env:
+          QBP_SYSTEMA_PAT: ${{ secrets.QBP_SYSTEMA_PAT }}
+        run: |
+          if [ -n "$QBP_SYSTEMA_PAT" ]; then
+            git config --global url."https://x-access-token:${QBP_SYSTEMA_PAT}@github.com/".insteadOf "https://github.com/"
+          else
+            echo "QBP_SYSTEMA_PAT secret not set; private-module fetches will fail. Set the secret per closeout Q7."
+          fi
+
+      - uses: golangci/golangci-lint-action@v7
+        continue-on-error: true   # remove this line once W2 + W3 land
+        with:
+          version: latest

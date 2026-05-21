@@ -1,0 +1,40 @@
+name: CodeQL
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * 1'   # weekly Monday 00:00 UTC
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze (go)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: go
+          queries: security-and-quality
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      - name: Configure git for private JamesPagetButler/* modules
+        env:
+          QBP_SYSTEMA_PAT: ${{ secrets.QBP_SYSTEMA_PAT }}
+        run: |
+          if [ -n "$QBP_SYSTEMA_PAT" ]; then
+            git config --global url."https://x-access-token:${QBP_SYSTEMA_PAT}@github.com/".insteadOf "https://github.com/"
+          fi
+      - uses: github/codeql-action/autobuild@v3
+        continue-on-error: true   # remove once W2 + W3 substrate deps land
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:go"
