@@ -1,0 +1,122 @@
+# qbp-systema / configs / scope-nodes.yaml
+#
+# Per QBP federation tenancy v0.2 §3 (Scope-Node Taxonomy). This is the
+# QBP-tenant CONFIGURATION against the upstream Wyrd #33 scope-loader API
+# + Contextus Spec v1.3 §4.6 schema. Not a schema proposal.
+#
+# Loaded at qbp-scout-daemon startup via Contextus scope-loader Go impl
+# (Contextus #9; status pending architect ping per Sprint 2 W3).
+#
+# Source: docs/qbp-federation-tenancy.md v0.2 (QBP PR #403 merged).
+# Sub-issue closure: QBP #445 (W4.1).
+#
+# Schema invariants (per A18 v0.2 §2.6 Locale composition predicate):
+#   - NT_SCOPE_PHYSICAL geometry types: bounding-box-4d | triple-locale | lab-set | spacecraft-fov | named-object
+#   - NT_SCOPE_CONCEPTUAL type-nodes: list of qbp:* prefixed Type-Nodes from §1 Stance vocabulary
+#
+# v0.3 note: Locale frame discipline (Earth-surface / Planet-surface / Orbital / InstrumentLocal / Cosmological)
+# lands at v0.3 per QBP #434 housekeeping. v0.2 assumes implicit Earth-frame for ground-based loci;
+# astrophysical/spacecraft loci use the SpacecraftFOV/NamedObject subtypes.
+
+schema_version: "v0.2"   # bumps to "v0.3" when Wyrd scope-loader API + Contextus #9 lock v0.3 frame discipline
+
+scope_nodes:
+
+  # ─── §3.1 NT_SCOPE_PHYSICAL ──────────────────────────────────────────
+
+  - id: NT_SCOPE_PHYSICAL/cascadia-zone
+    geometry:
+      type: bounding-box-4d
+      lat: [39, 49]
+      lon: [-128, -122]
+      depth: [0, 80km]
+      time: [2024-01-01, now]
+    type: tectonic-locale
+    description: "Cascadia subduction zone for slow-slip + tidal-coupling research"
+
+  - id: NT_SCOPE_PHYSICAL/ligo-network
+    geometry:
+      type: triple-locale
+      locales: [hanford, livingston, virgo]
+    type: observatory-network
+    description: "LIGO/Virgo gravitational-wave detection network"
+
+  - id: NT_SCOPE_PHYSICAL/trapped-ion-network
+    geometry:
+      type: lab-set
+      locales: [nist-boulder, innsbruck, oxford, eth-zurich]
+    type: experimental-lab-network
+    description: "Mixed-species trapped-ion entanglement experiments (Test C target labs)"
+
+  - id: NT_SCOPE_PHYSICAL/jwst-survey
+    geometry:
+      type: spacecraft-fov
+      mission: jwst
+    type: orbital-observatory
+    description: "JWST field-of-view; spectroscopic + imaging"
+
+  - id: NT_SCOPE_PHYSICAL/nicer-observatory
+    geometry:
+      type: spacecraft-fov
+      mission: nicer
+    type: orbital-observatory
+    description: "NICER X-ray timing; neutron-star EOS / TOV-limit observations (per v0.2 R13)"
+
+  - id: NT_SCOPE_PHYSICAL/nustar-observatory
+    geometry:
+      type: spacecraft-fov
+      mission: nustar
+    type: orbital-observatory
+    description: "NuSTAR hard X-ray; neutron-star + AGN observations (per v0.2 R13)"
+
+  # ─── §3.2 NT_SCOPE_CONCEPTUAL ────────────────────────────────────────
+
+  - id: NT_SCOPE_CONCEPTUAL/quaternion-foundations
+    type_nodes:
+      - qbp:hamilton-product
+      - qbp:quaternion-conjugation
+      - qbp:hopf-locale
+      - qbp:su2-double-cover
+    description: "Foundational algebraic Type-Nodes; load-bearing for all QBP work"
+
+  - id: NT_SCOPE_CONCEPTUAL/cascadia-prediction
+    type_nodes:
+      - qbp:slow-slip-tidal-coupling
+      - qbp:cascadia-tremor-onset-24h
+      - qbp:tidal-coupling-norm-threshold
+    description: "Cascadia Walk-α prediction stance"
+
+  - id: NT_SCOPE_CONCEPTUAL/gw-em-coincidence
+    type_nodes:
+      - qbp:gw-em-coincidence
+      - qbp:gw-grb-joint-detection-rate
+    description: "EXP-11 pipeline + multi-messenger observations"
+
+  - id: NT_SCOPE_CONCEPTUAL/fidelity-asymmetry
+    type_nodes:
+      - qbp:mixed-species-ion-fidelity
+      - qbp:fidelity-asymmetry-velocity-correlated
+    description: "Test C literature review + future trapped-ion experiments"
+
+  - id: NT_SCOPE_CONCEPTUAL/topological-materials
+    type_nodes:
+      - qbp:topological-materials-q1-q10
+      - qbp:kitaev-z2-gauge
+      - qbp:dm-branch-a-modified-gravity
+      - qbp:dm-branch-b-particle-or-field-extension
+    description: "Topological materials + DM-fork branches (per v0.2 R15 DM-fork split)"
+
+  - id: NT_SCOPE_CONCEPTUAL/nv-center
+    type_nodes:
+      - qbp:nv-center-fidelity
+    description: "NV-center critical path (per QBP programme state)"
+
+  - id: NT_SCOPE_CONCEPTUAL/spectral-action
+    type_nodes:
+      - qbp:spectral-triple
+      - qbp:cd-tower-zeta-numerator
+      - qbp:spectral-action-entropy
+    description: "Spectral Action programme + CCvS confluence (per v0.2 R7-R11 Stance additions)"
+
+# Plus per-celestial-object scopes (e.g., grb:250702b) added dynamically as objects come into focus
+# per tenancy doc §2.3. Initial empty; appended by reins commands at runtime.
