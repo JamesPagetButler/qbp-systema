@@ -1,0 +1,121 @@
+# qbp-systema / configs / scouts.yaml
+#
+# Per QBP federation tenancy v0.2 §4 (Scout Configuration). This YAML carries
+# scout NAMES + cadences + agent classes (declarative); the Fetch/Transform Go
+# code is tenant-shipped (imperative) and registered programmatically at
+# qbp-scout-daemon startup time per Wyrd PR #54 §4 (config loading).
+#
+# Sub-issue closure: QBP #446 (W4.2).
+#
+# Schema invariants (per Wyrd PR #54 §2 Scout struct):
+#   - name: per-tenant identifier (e.g., "qbp.arxiv.daily")
+#   - cadence: time.Duration (24h, 1h, 0s for event-driven)
+#   - agent_class: per Contextus Spec v1.3 §11.1
+#       global persistent: scout | correlation | synthesis
+#       session-scoped:    edge-scout | corpus-edge | bridge-agent  (rejected at registration)
+#
+# v0.x note on absolute scheduling: per my Wyrd PR #54 review F2, the daemon
+# needs Scout.FirstAt *time.Time for absolute schedules ("next 02:00 UTC"
+# rather than "24h from daemon start"). This config assumes F2 lands; if not,
+# QBP arXiv scout uses interval-cadence with a startup-delay workaround.
+
+tenant_schema_version: "v0.1"
+# Field renamed from `schema_version` per PR #2 Red Team G2 / Gemini Suggestion 3: disambiguate
+# from CTH framework's `schema_version` (CTH inventory format version).
+
+scouts:
+
+  # ─── §4.1 Daily-batch arXiv scout ──────────────────────────────────
+
+  - name: qbp.arxiv.daily
+    cadence: 24h
+    first_at: "next 02:00 UTC"            # absolute schedule per Wyrd PR #54 F2 (pending)
+    agent_class: scout                     # global persistent author per Contextus v1.3 §11.1
+    rate_limit:
+      requests_per_second: 3              # arXiv API policy
+      user_agent: "QBP-Federation-Tenant/0.2 (https://github.com/JamesPagetButler/QBP)"
+      backoff:
+        strategy: exponential-with-jitter
+        max_retries: 5
+        ceiling_seconds: 30
+    sources:                               # arXiv categories per tenancy §4.1
+      - astro-ph.HE                       # high-energy astrophysics
+      - astro-ph.CO                       # cosmology
+      - astro-ph.SR                       # solar/stellar
+      - quant-ph                          # quantum physics
+      - hep-th                            # high-energy theory
+      - hep-ph                            # high-energy phenomenology
+      - cond-mat.mes-hall                 # mesoscopic + nano
+      - cond-mat.supr-con                 # superconductivity
+      - cond-mat.str-el                   # strongly correlated
+      - math.QA                           # quantum algebra
+      - math.MP                           # mathematical physics
+      - math.OA                           # operator algebra
+      - gr-qc                             # general relativity + quantum cosmology
+    filter: stance-type-node-match-in-title-or-abstract
+    output:
+      referent_kind: scalar
+      escalation: bma-noteworthy-dashboard
+
+  # ─── §4.2 Data-feed scouts ──────────────────────────────────────────
+
+  - name: qbp.ligo.event-driven
+    cadence: 0s                            # event-driven; caller pushes via TriggerOnce
+    agent_class: scout
+    source: ligo-open-science-alerts
+    scope: NT_SCOPE_PHYSICAL/ligo-network
+    output:
+      referent_kind: categorical
+      payload: event-metadata
+
+  - name: qbp.usgs-cascadia.hourly
+    cadence: 1h
+    agent_class: scout
+    source: usgs-cascadia-gps
+    scope: NT_SCOPE_PHYSICAL/cascadia-zone
+    output:
+      referent_kind: scalar
+      payload: gps-station-displacements
+
+  - name: qbp.pnsn-ets.daily
+    cadence: 24h
+    agent_class: scout
+    source: pnsn-ets-catalog
+    scope: NT_SCOPE_PHYSICAL/cascadia-zone
+    output:
+      referent_kind: categorical
+      payload: ets-events
+
+  - name: qbp.fermi-gbm.event-driven
+    cadence: 0s
+    agent_class: scout
+    source: fermi-gbm-grb
+    # Scope fixed per PR #2 Gemini Suggestion 1: previous `jwst-survey union ligo-network`
+    # was physically incoherent — JWST is a narrow-field IR observatory and cannot
+    # provide GW-EM coincidence with an all-sky gamma-ray monitor. Fermi GBM's actual
+    # field-of-regard is now the canonical scope; LIGO union captures the GW counterpart
+    # search side.
+    scope: "NT_SCOPE_PHYSICAL/fermi-observatory union NT_SCOPE_PHYSICAL/ligo-network"
+    output:
+      referent_kind: categorical
+      payload: grb-metadata-with-coincidence-flags
+
+  # ─── §4.3 Cross-domain reins-invoked scout ───────────────────────────
+
+  - name: qbp.cross-domain.reins
+    cadence: 0s                            # reins-command-invoked, not scheduled
+    agent_class: scout
+    invocation: reins-command
+    # Forward-pinned: `bma scout cross-domain` does not yet exist on bma-systema
+    # (per PR #2 Red Team S4). The daemon resolves this at registration time and
+    # fails fast if the bma surface is absent; non-blocking for PR #2 merge,
+    # tracked as housekeeping issue against bma-systema.
+    command_shape: "bma scout cross-domain '<query>'"
+    scope: tenant-stance × ALL_LOCALES     # broader spatial; same conceptual stance
+    output:
+      referent_kind: scalar
+      noise_tolerance: elevated            # low-resonance accepted
+
+# Plus per §4.4 anomaly detector (Seam-bypass) — NOT a scout, runs continuously on peripheral.
+# Threshold τ_Locale per QBP #431 housekeeping (Locale-noise-floor data sourcing pending).
+# Defined in daemon configuration, not in this scouts.yaml file.
