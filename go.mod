@@ -1,6 +1,6 @@
 module github.com/JamesPagetButler/qbp-systema
 
-go 1.21
+go 1.23
 
 // External federation substrate dependencies — added when W2 + W3 substrate
 // PRs merge:
