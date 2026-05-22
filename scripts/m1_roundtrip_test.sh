@@ -15,6 +15,11 @@
 
 set -euo pipefail
 
+# Preflight: verify external dependencies are on PATH (per PR #2 Red Team S2).
+for cmd in wyrd yq; do
+  command -v "$cmd" >/dev/null 2>&1 || { echo "FAIL: $cmd not found; install before running"; exit 2; }
+done
+
 SCOPE_NODES_YAML="${SCOPE_NODES_YAML:-configs/scope-nodes.yaml}"
 
 echo "M1 round-trip: extracting scope-node IDs from $SCOPE_NODES_YAML..."
@@ -28,9 +33,10 @@ for id in $IDS; do
   TOTAL=$((TOTAL + 1))
   echo -n "  $id ... "
 
-  # Pull from Wyrd graph; normalise for comparison.
-  WYRD_RECORD=$(wyrd graph get "$id" --format=yaml 2>&1 || echo "WYRD_QUERY_FAILED")
-  if [ "$WYRD_RECORD" = "WYRD_QUERY_FAILED" ]; then
+  # Pull from Wyrd graph; check exit code explicitly (per PR #2 Red Team K2:
+  # prior `2>&1 || echo SENTINEL` pattern merged stderr into the variable and
+  # missed the succeeds-with-garbage-output edge case).
+  if ! WYRD_RECORD=$(wyrd graph get "$id" --format=yaml 2>/dev/null); then
     echo "FAIL (not in graph)"
     FAIL_COUNT=$((FAIL_COUNT + 1))
     continue

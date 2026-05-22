@@ -16,6 +16,11 @@
 
 set -euo pipefail
 
+# Preflight: verify external dependencies are on PATH (per PR #2 Red Team S2).
+for cmd in wyrd jq; do
+  command -v "$cmd" >/dev/null 2>&1 || { echo "FAIL: $cmd not found; install before running"; exit 2; }
+done
+
 CTH_BASELINE_PATH="archive/cth-inventory/confluent-trust-inventory-v5_3.json"
 
 echo "M2 end-to-end smoke: starting qbp-scout-daemon in --trigger-once mode..."

@@ -19,7 +19,9 @@
 # rather than "24h from daemon start"). This config assumes F2 lands; if not,
 # QBP arXiv scout uses interval-cadence with a startup-delay workaround.
 
-schema_version: "v0.1"
+tenant_schema_version: "v0.1"
+# Field renamed from `schema_version` per PR #2 Red Team G2 / Gemini Suggestion 3: disambiguate
+# from CTH framework's `schema_version` (CTH inventory format version).
 
 scouts:
 
@@ -88,7 +90,12 @@ scouts:
     cadence: 0s
     agent_class: scout
     source: fermi-gbm-grb
-    scope: "NT_SCOPE_PHYSICAL/jwst-survey union NT_SCOPE_PHYSICAL/ligo-network"   # cross-instrument coincidence
+    # Scope fixed per PR #2 Gemini Suggestion 1: previous `jwst-survey union ligo-network`
+    # was physically incoherent — JWST is a narrow-field IR observatory and cannot
+    # provide GW-EM coincidence with an all-sky gamma-ray monitor. Fermi GBM's actual
+    # field-of-regard is now the canonical scope; LIGO union captures the GW counterpart
+    # search side.
+    scope: "NT_SCOPE_PHYSICAL/fermi-observatory union NT_SCOPE_PHYSICAL/ligo-network"
     output:
       referent_kind: categorical
       payload: grb-metadata-with-coincidence-flags
@@ -99,6 +106,10 @@ scouts:
     cadence: 0s                            # reins-command-invoked, not scheduled
     agent_class: scout
     invocation: reins-command
+    # Forward-pinned: `bma scout cross-domain` does not yet exist on bma-systema
+    # (per PR #2 Red Team S4). The daemon resolves this at registration time and
+    # fails fast if the bma surface is absent; non-blocking for PR #2 merge,
+    # tracked as housekeeping issue against bma-systema.
     command_shape: "bma scout cross-domain '<query>'"
     scope: tenant-stance × ALL_LOCALES     # broader spatial; same conceptual stance
     output:

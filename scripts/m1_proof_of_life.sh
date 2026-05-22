@@ -16,6 +16,11 @@
 
 set -euo pipefail
 
+# Preflight: verify external dependencies are on PATH (per PR #2 Red Team S2).
+for cmd in wyrd; do
+  command -v "$cmd" >/dev/null 2>&1 || { echo "FAIL: $cmd not found; install before running"; exit 2; }
+done
+
 EXPECTED_MIN=11   # 6 NT_SCOPE_PHYSICAL + 6 NT_SCOPE_CONCEPTUAL minus tolerance for partial loads
 
 echo "M1 proof-of-life: starting qbp-scout-daemon in --load-configs-only mode..."
