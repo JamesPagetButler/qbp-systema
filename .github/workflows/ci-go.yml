@@ -48,16 +48,26 @@ jobs:
       # NOTE: until W2 (Wyrd scoutd impl) + W3 (Contextus scope-loader Go)
       # ship, `go build ./...` will fail with unresolved imports per
       # cmd/qbp-scout-daemon/main.go + pkg/scouts/arxiv/* file headers.
-      # The build job runs anyway to surface the gap via the job-level
+      # The build steps run anyway to surface the gap via the job-level
       # continue-on-error above; CI failure here is expected and tracked
       # at QBP #443 + #444.
+      #
+      # Step-level hashFiles guard (per PR #3 round-2 CI discovery): on
+      # branches with zero Go source (e.g., this CI-only PR, PR #2 configs),
+      # go vet / golangci-lint fail with "no packages" — clearer to skip
+      # cleanly and let the job report green. Matches the CodeQL pattern in
+      # codeql.yml. When Go source lands on main (post PR #1 merge), these
+      # guards become no-ops.
       - name: Build
+        if: hashFiles('**/*.go') != ''
         run: go build ./...
 
       - name: Vet
+        if: hashFiles('**/*.go') != ''
         run: go vet ./...
 
       - name: Test (race-detect)
+        if: hashFiles('**/*.go') != ''
         run: go test -race -coverprofile=coverage.out ./...
 
       - uses: actions/upload-artifact@v4
@@ -87,6 +97,10 @@ jobs:
             echo "QBP_SYSTEMA_PAT secret not set; private-module fetches will fail. Set the secret per closeout Q7."
           fi
 
-      - uses: golangci/golangci-lint-action@v7
+      # Step-level hashFiles guard per round-2 CI discovery (mirrors build/vet/test
+      # + CodeQL pattern). golangci-lint exits 5 on "no go files to analyze";
+      # skip cleanly on docs/CI-only branches.
+      - if: hashFiles('**/*.go') != ''
+        uses: golangci/golangci-lint-action@v7
         with:
           version: latest
