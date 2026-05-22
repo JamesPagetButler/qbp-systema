@@ -25,7 +25,7 @@ jobs:
           queries: security-and-quality
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.23'
       - name: Configure git for private JamesPagetButler/* modules
         env:
           QBP_SYSTEMA_PAT: ${{ secrets.QBP_SYSTEMA_PAT }}
@@ -33,8 +33,14 @@ jobs:
           if [ -n "$QBP_SYSTEMA_PAT" ]; then
             git config --global url."https://x-access-token:${QBP_SYSTEMA_PAT}@github.com/".insteadOf "https://github.com/"
           fi
-      - uses: github/codeql-action/autobuild@v3
+      - id: autobuild
+        uses: github/codeql-action/autobuild@v3
         continue-on-error: true   # remove once W2 + W3 substrate deps land
-      - uses: github/codeql-action/analyze@v3
+      # PR #3 Red Team K3 + Gemini Suggestion 3: skip analyze if autobuild
+      # failed. CodeQL `analyze` needs a built database; if `autobuild` was
+      # swallowed by continue-on-error, analyze would crash anyway. Skip
+      # cleanly until W2+W3 substrate lets autobuild succeed.
+      - if: steps.autobuild.outcome == 'success'
+        uses: github/codeql-action/analyze@v3
         with:
           category: "/language:go"

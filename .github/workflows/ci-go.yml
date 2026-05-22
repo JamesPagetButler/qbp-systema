@@ -17,11 +17,17 @@ env:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    # Job-level continue-on-error until W2 (Wyrd scoutd impl, QBP #443) + W3
+    # (Contextus scope-loader Go, QBP #444) substrate deps land. Per PR #3
+    # Red Team S2 + Gemini Suggestion 2: consolidated from 4 step-sites to
+    # 1 job-toggle to reduce cleanup brittleness. Remove this line at W2+W3
+    # land — the build/vet/test steps then surface failures normally.
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.23'
 
       - name: Configure git for private JamesPagetButler/* modules
         # QBP_SYSTEMA_PAT must be a fine-grained or classic PAT with read
@@ -42,18 +48,16 @@ jobs:
       # NOTE: until W2 (Wyrd scoutd impl) + W3 (Contextus scope-loader Go)
       # ship, `go build ./...` will fail with unresolved imports per
       # cmd/qbp-scout-daemon/main.go + pkg/scouts/arxiv/* file headers.
-      # The build job runs anyway to surface the gap; CI failure here is
-      # expected and tracked at QBP #443 + #444.
+      # The build job runs anyway to surface the gap via the job-level
+      # continue-on-error above; CI failure here is expected and tracked
+      # at QBP #443 + #444.
       - name: Build
-        continue-on-error: true   # remove this line once W2 + W3 land
         run: go build ./...
 
       - name: Vet
-        continue-on-error: true   # remove this line once W2 + W3 land
         run: go vet ./...
 
       - name: Test (race-detect)
-        continue-on-error: true   # remove this line once W2 + W3 land
         run: go test -race -coverprofile=coverage.out ./...
 
       - uses: actions/upload-artifact@v4
@@ -64,11 +68,14 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    # Job-level continue-on-error per PR #3 Red Team S2 + Gemini Suggestion 2.
+    # Remove at W2+W3 land.
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.23'
 
       - name: Configure git for private JamesPagetButler/* modules
         env:
@@ -81,6 +88,5 @@ jobs:
           fi
 
       - uses: golangci/golangci-lint-action@v7
-        continue-on-error: true   # remove this line once W2 + W3 land
         with:
           version: latest
