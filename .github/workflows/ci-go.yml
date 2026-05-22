@@ -1,0 +1,106 @@
+name: CI (Go)
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  # Modules under the JamesPagetButler/* prefix are private; bypass the
+  # public Go module proxy + sum database. Same pattern as Wyrd CI.
+  GOPRIVATE: github.com/JamesPagetButler/*
+  GOPROXY: https://proxy.golang.org,direct
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    # Job-level continue-on-error until W2 (Wyrd scoutd impl, QBP #443) + W3
+    # (Contextus scope-loader Go, QBP #444) substrate deps land. Per PR #3
+    # Red Team S2 + Gemini Suggestion 2: consolidated from 4 step-sites to
+    # 1 job-toggle to reduce cleanup brittleness. Remove this line at W2+W3
+    # land — the build/vet/test steps then surface failures normally.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Configure git for private JamesPagetButler/* modules
+        # QBP_SYSTEMA_PAT must be a fine-grained or classic PAT with read
+        # access to JamesPagetButler/wyrd + JamesPagetButler/Contextus
+        # (substrate deps; W2 + W3 dependencies). Rotate every 90 days
+        # per closeout Q7 standing rule. If the secret is missing, the
+        # step is a no-op and Go falls back to the failing public path
+        # so the failure mode is visible.
+        env:
+          QBP_SYSTEMA_PAT: ${{ secrets.QBP_SYSTEMA_PAT }}
+        run: |
+          if [ -n "$QBP_SYSTEMA_PAT" ]; then
+            git config --global url."https://x-access-token:${QBP_SYSTEMA_PAT}@github.com/".insteadOf "https://github.com/"
+          else
+            echo "QBP_SYSTEMA_PAT secret not set; private-module fetches will fail. Set the secret per closeout Q7."
+          fi
+
+      # NOTE: until W2 (Wyrd scoutd impl) + W3 (Contextus scope-loader Go)
+      # ship, `go build ./...` will fail with unresolved imports per
+      # cmd/qbp-scout-daemon/main.go + pkg/scouts/arxiv/* file headers.
+      # The build steps run anyway to surface the gap via the job-level
+      # continue-on-error above; CI failure here is expected and tracked
+      # at QBP #443 + #444.
+      #
+      # Step-level hashFiles guard (per PR #3 round-2 CI discovery): on
+      # branches with zero Go source (e.g., this CI-only PR, PR #2 configs),
+      # go vet / golangci-lint fail with "no packages" — clearer to skip
+      # cleanly and let the job report green. Matches the CodeQL pattern in
+      # codeql.yml. When Go source lands on main (post PR #1 merge), these
+      # guards become no-ops.
+      - name: Build
+        if: hashFiles('**/*.go') != ''
+        run: go build ./...
+
+      - name: Vet
+        if: hashFiles('**/*.go') != ''
+        run: go vet ./...
+
+      - name: Test (race-detect)
+        if: hashFiles('**/*.go') != ''
+        run: go test -race -coverprofile=coverage.out ./...
+
+      - uses: actions/upload-artifact@v4
+        if: success() && hashFiles('coverage.out') != ''
+        with:
+          name: coverage
+          path: coverage.out
+
+  lint:
+    runs-on: ubuntu-latest
+    # Job-level continue-on-error per PR #3 Red Team S2 + Gemini Suggestion 2.
+    # Remove at W2+W3 land.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Configure git for private JamesPagetButler/* modules
+        env:
+          QBP_SYSTEMA_PAT: ${{ secrets.QBP_SYSTEMA_PAT }}
+        run: |
+          if [ -n "$QBP_SYSTEMA_PAT" ]; then
+            git config --global url."https://x-access-token:${QBP_SYSTEMA_PAT}@github.com/".insteadOf "https://github.com/"
+          else
+            echo "QBP_SYSTEMA_PAT secret not set; private-module fetches will fail. Set the secret per closeout Q7."
+          fi
+
+      # Step-level hashFiles guard per round-2 CI discovery (mirrors build/vet/test
+      # + CodeQL pattern). golangci-lint exits 5 on "no go files to analyze";
+      # skip cleanly on docs/CI-only branches.
+      - if: hashFiles('**/*.go') != ''
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: latest
