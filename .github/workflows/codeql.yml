@@ -19,14 +19,23 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v3
+      # PR #3 round-1 CI revealed: branches with no Go source (e.g., this
+      # PR which ships only YAML, or PR #2 which ships only YAML+bash) cause
+      # CodeQL analyze to crash with "could not process any code written in
+      # Go" after autobuild vacuously succeeds. Gate the substantive CodeQL
+      # steps on actual Go-source presence; harmless skip on docs/CI-only
+      # PRs, full run on real Go changes.
+      - if: hashFiles('**/*.go') != ''
+        uses: github/codeql-action/init@v3
         with:
           languages: go
           queries: security-and-quality
-      - uses: actions/setup-go@v5
+      - if: hashFiles('**/*.go') != ''
+        uses: actions/setup-go@v5
         with:
           go-version: '1.23'
       - name: Configure git for private JamesPagetButler/* modules
+        if: hashFiles('**/*.go') != ''
         env:
           QBP_SYSTEMA_PAT: ${{ secrets.QBP_SYSTEMA_PAT }}
         run: |
@@ -34,13 +43,14 @@ jobs:
             git config --global url."https://x-access-token:${QBP_SYSTEMA_PAT}@github.com/".insteadOf "https://github.com/"
           fi
       - id: autobuild
+        if: hashFiles('**/*.go') != ''
         uses: github/codeql-action/autobuild@v3
         continue-on-error: true   # remove once W2 + W3 substrate deps land
       # PR #3 Red Team K3 + Gemini Suggestion 3: skip analyze if autobuild
       # failed. CodeQL `analyze` needs a built database; if `autobuild` was
       # swallowed by continue-on-error, analyze would crash anyway. Skip
       # cleanly until W2+W3 substrate lets autobuild succeed.
-      - if: steps.autobuild.outcome == 'success'
+      - if: hashFiles('**/*.go') != '' && steps.autobuild.outcome == 'success'
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:go"
