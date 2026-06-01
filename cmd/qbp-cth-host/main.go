@@ -56,7 +56,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "qbp-cth-host: %v\n", err)
 		os.Exit(1)
 	}
-	defer h.Close()
+	defer func() { _ = h.Close() }()
 
 	switch args[0] {
 	case "health":

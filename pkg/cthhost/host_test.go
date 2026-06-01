@@ -64,7 +64,7 @@ func TestOpenHealthQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	defer h.Close()
+	defer func() { _ = h.Close() }()
 
 	hr := h.Health()
 	if hr.AnchorCount != 141 {
@@ -105,7 +105,7 @@ func TestEmitterSeam(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	defer h.Close()
+	defer func() { _ = h.Close() }()
 
 	err = h.AppendAnchor(model.Anchor{
 		ID:              "TEST-cthhost-emit",
