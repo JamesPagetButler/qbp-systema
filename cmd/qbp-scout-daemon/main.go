@@ -1,3 +1,5 @@
+//go:build substrate
+
 // Command qbp-scout-daemon is the QBP-tenant scout daemon entrypoint.
 //
 // Per QBP federation tenancy v0.2 §7 Bootstrap Sequence + Wyrd PR #54 §11.3
