@@ -1,3 +1,5 @@
+//go:build substrate
+
 // Package arxiv implements the QBP arXiv daily-batch scout's Fetch +
 // Transform halves per QBP federation tenancy v0.2 §4.1.
 //

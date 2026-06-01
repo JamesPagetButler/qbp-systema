@@ -1,3 +1,5 @@
+//go:build substrate
+
 // Package arxiv — Transform half of the QBP arXiv daily-batch scout.
 //
 // Sub-issue closure: QBP #449 (W5.2).
