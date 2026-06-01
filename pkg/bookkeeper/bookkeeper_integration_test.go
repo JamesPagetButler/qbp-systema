@@ -20,7 +20,7 @@ func seedTestInventory(t *testing.T) string {
 	t.Helper()
 	src, err := os.Open("testdata/confluent-trust-inventory-v5_3.v0.3.json")
 	require.NoError(t, err)
-	defer src.Close()
+	defer func() { _ = src.Close() }()
 
 	dst, err := os.CreateTemp(t.TempDir(), "qbp-inventory-*.json")
 	require.NoError(t, err)
@@ -53,7 +53,7 @@ func TestQBPInventoryLoads(t *testing.T) {
 
 	li, err := bookkeeper.Open(path, nil)
 	require.NoError(t, err)
-	defer li.Close()
+	defer func() { _ = li.Close() }()
 
 	snap := li.Snapshot()
 
@@ -92,7 +92,7 @@ func TestQBPInventoryKnownAnchor(t *testing.T) {
 
 	li, err := bookkeeper.Open(path, nil)
 	require.NoError(t, err)
-	defer li.Close()
+	defer func() { _ = li.Close() }()
 
 	snap := li.Snapshot()
 	anchor := findByID(snap, "PROOF-hurwitz")
@@ -130,7 +130,7 @@ func TestQBPInventoryLiveRoundTrip(t *testing.T) {
 
 	li, err := bookkeeper.Open(path, hooks)
 	require.NoError(t, err)
-	defer li.Close()
+	defer func() { _ = li.Close() }()
 
 	// Baseline count before write.
 	snapBefore := li.Snapshot()
@@ -176,7 +176,7 @@ func TestQBPInventoryNetCompressionStable(t *testing.T) {
 	path := seedTestInventory(t)
 	li, err := bookkeeper.Open(path, nil)
 	require.NoError(t, err)
-	defer li.Close()
+	defer func() { _ = li.Close() }()
 
 	snap := li.Snapshot()
 	netRho, detail := compute.NetCompression(snap, nil)
