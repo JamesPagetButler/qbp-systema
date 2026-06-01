@@ -51,9 +51,17 @@ func (h *Host) Close() error { return h.li.Close() }
 
 // SeedIfAbsent writes bundledData to path when path does not yet exist
 // (hybrid bundle+volume seeding per cth-implementor's recommendation:
-// the canonical inventory ships in the image and seeds the data volume on
-// first run; an existing inventory at path is left untouched so runtime
-// appends accumulate). Returns true if it seeded.
+// the canonical inventory seeds the data volume on first run; an existing
+// inventory at path is left untouched so runtime appends accumulate).
+// Returns true if it seeded.
+//
+// CANONICAL-SOURCE CONTRACT: bundledData MUST be the canonical CTH inventory —
+// QBP archive/cth-inventory/confluent-trust-inventory-v5_3.v0.3.json (the
+// git-tracked source-of-truth, beekeeper 2026-05-14) — supplied at deploy time
+// via the host's -seed flag. It must NOT be the qbp-systema test fixture in
+// pkg/bookkeeper/testdata, which is a frozen snapshot pinned to fixed test
+// assertions and intentionally diverges from canonical (cth-implementor drift
+// flag, cth-qbp-live-testing seq=19/21). The fixture is for tests only.
 func SeedIfAbsent(path string, bundledData []byte) (bool, error) {
 	if _, err := os.Stat(path); err == nil {
 		return false, nil // already present — leave runtime state intact
