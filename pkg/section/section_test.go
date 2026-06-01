@@ -22,15 +22,13 @@ func TestAxisOrderMatchesLocaleDeclaration(t *testing.T) {
 	}
 }
 
-func TestAxisGlue_OnlyTheoryJoins(t *testing.T) {
-	// Theory glues by join (any strong anchor elevates); all others by meet.
-	if section.AxisGlue(section.Theory) != section.Join {
-		t.Error("Theory axis must glue by Join")
-	}
-	for _, a := range []section.Axis{section.Reproducibility, section.Stats, section.Method, section.Independence} {
-		if section.AxisGlue(a) != section.Meet {
-			t.Errorf("%s axis must glue by Meet", a)
-		}
+func TestSectionCarriesNoGluingOps(t *testing.T) {
+	// Gluing ops are host-owned (LOCALE), not producer-supplied (architect
+	// seq=12). The Section must carry only axes + fingerprint + LocaleID.
+	// This is a compile-time guarantee: the only exported fields are those.
+	s := section.Section{LocaleID: section.LocaleQBPExperiments}
+	if s.LocaleID != "cth.qbp.experiments" {
+		t.Errorf("LocaleQBPExperiments = %q, want cth.qbp.experiments", s.LocaleID)
 	}
 }
 

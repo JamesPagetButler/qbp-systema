@@ -49,25 +49,21 @@ func (a Axis) String() string {
 	}
 }
 
-// Glue is the per-axis gluing operation the CTH host applies across the
-// members of a cluster. Recorded here so producer and host agree on the
-// structure even though the host performs the computation.
-type Glue int
+// Gluing operations (meet/join per axis) deliberately do NOT live here.
+// They are type-level properties of the LOCALE, owned and applied by the CTH
+// host — not instance-level data a producer supplies (architect cth-qbp-live-testing
+// seq=12; LOCALE/CONTRACT separation per live-test seq=374/375). If the host
+// read gluing ops off incoming sections, a buggy/inconsistent producer could
+// inject wrong ops (theory-join on one section, theory-meet on another) and the
+// host would silently glue with whatever it received. So a Section carries only
+// its axis values + provenance + the LOCALE it was produced under; the host
+// validates the locale matches its own and applies the canonical gluing.
 
-const (
-	Meet Glue = iota // infimum — conservative; the weakest member bounds the glue
-	Join             // supremum — optimistic; the strongest member elevates
-)
-
-// AxisGlue returns the gluing operation for an axis (meet for all but theory).
-// Mathematical structure only — kept separate from any threshold policy
-// (architect seq=7: "LOCALE definition separate from CLUSTER_TRUST policy").
-func AxisGlue(a Axis) Glue {
-	if a == Theory {
-		return Join
-	}
-	return Meet
-}
+// LocaleQBPExperiments is the QBP experiments locale identifier — the locale
+// QBP-domain trust assertions are produced under. The CTH host validates an
+// incoming section's LocaleID against its own LOCALE definition and rejects on
+// mismatch (fail-early), rather than gluing with mismatched ops.
+const LocaleQBPExperiments = "cth.qbp.experiments"
 
 // Section is the producer-side sheaf-trust section attached to one assertion.
 //
@@ -77,15 +73,22 @@ func AxisGlue(a Axis) Glue {
 //	             Walk = formal Grothendieck-site cover (independence is a
 //	             relational property between sections, so a per-section value
 //	             needs either the proxy or the site topology — architect seq=7 Q).
+//	LocaleID:    the LOCALE this section was produced under (e.g.
+//	             LocaleQBPExperiments). The CTH host validates it matches its
+//	             own LOCALE and rejects on mismatch — it does NOT carry gluing
+//	             ops (those are host-owned; architect seq=12).
 //
 // Zero value is a valid "no provenance asserted yet" section (all axes 0,
-// empty fingerprint) — the Crawl-phase default until the scoring spec activates.
+// empty fingerprint, no locale) — the Crawl-phase default until the scoring
+// spec activates.
 type Section struct {
 	Axes        [NumAxes]float64
 	Fingerprint []byte
+	LocaleID    string
 }
 
-// Zero returns the Crawl-phase default section (all axes zero, no fingerprint).
+// Zero returns the Crawl-phase default section (all axes zero, no fingerprint,
+// no locale).
 func Zero() Section { return Section{} }
 
 // Valid reports whether every axis value is in [0,1].
